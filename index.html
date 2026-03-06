@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f0e17">
+<meta name="description" content="An interactive feelings wheel journal to help you identify and log your emotions.">
+<title>Feelings Wheel</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #0f0e17;
+  --surface: #1a1929;
+  --surface2: #232235;
+  --border: rgba(255,255,255,0.09);
+  --text: #fffffe;
+  --muted: #a7a9be;
+  --accent: #ff8906;
+  --accent2: #e53170;
+  --radius: 16px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html { height: 100%; }
+
+body {
+  height: 100%;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--safe-top);
+}
+
+/* ── HEADER ── */
+header {
+  flex-shrink: 0;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  background: var(--bg);
+  z-index: 10;
+}
+header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+header .subtitle {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 300;
+}
+
+/* ── TAB BAR ── */
+.tab-bar {
+  flex-shrink: 0;
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  z-index: 10;
+}
+.tab-btn {
+  flex: 1;
+  height: 44px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: color 0.18s, border-color 0.18s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.tab-badge {
+  background: var(--accent2);
+  color: white;
+  font-size: 0.62rem;
+  font-weight: 700;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.tab-badge.show { display: flex; }
+
+/* ── PAGES ── */
+.pages {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+.page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  display: none;
+  flex-direction: column;
+}
+.page.active { display: flex; }
+
+/* ── WHEEL PAGE ── */
+#wheelPage {
+  align-items: center;
+  padding: 10px 6px 20px;
+}
+.selection-bar {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 560px;
+  min-height: 34px;
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+.chip {
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 0.77rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  animation: chipIn 0.2s ease;
+  user-select: none;
+}
+.chip .remove {
+  cursor: pointer;
+  opacity: 0.7;
+  font-size: 1.1rem;
+  line-height: 1;
+  min-width: 22px;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+@keyframes chipIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+svg#wheel {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  touch-action: manipulation;
+  filter: drop-shadow(0 6px 24px rgba(0,0,0,0.5));
+}
+.segment {
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: filter 0.12s ease;
+}
+.segment.hovered {
+  filter: brightness(1.22) saturate(1.25);
+}
+.segment.selected {
+  filter: brightness(1.35) saturate(1.5);
+}
+.seg-text {
+  pointer-events: none;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  fill: rgba(0,0,0,0.72);
+  dominant-baseline: middle;
+  text-anchor: middle;
+}
+
+/* Zoom tooltip label */
+#zoomLabel {
+  position: fixed;
+  background: rgba(15,14,23,0.92);
+  color: #fffffe;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+#zoomLabel.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── BUTTONS ── */
+.btn {
+  padding: 13px 18px;
+  border: none;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: opacity 0.12s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 48px;
+}
+.btn:active { transform: scale(0.96); }
+.btn-primary { flex: 1; background: var(--accent); color: #0f0e17; }
+.btn-primary:disabled { opacity: 0.35; }
+.btn-ghost { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); min-width: 76px; }
+
+/* ── LOG PAGE ── */
+#logPage {
+  padding: 14px 14px calc(20px + env(safe-area-inset-bottom, 0px));
+  gap: 10px;
+}
+.log-compose {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.log-compose h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+.compose-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 26px;
+  align-items: center;
+}
+.compose-chip {
+  font-size: 0.74rem;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: rgba(0,0,0,0.72);
+}
+.compose-empty {
+  font-size: 0.76rem;
+  color: var(--muted);
+  font-style: italic;
+}
+.note-area {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px; /* prevents iOS zoom */
+  padding: 11px 12px;
+  resize: none;
+  outline: none;
+  transition: border-color 0.2s;
+  line-height: 1.5;
+  min-height: 76px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.note-area:focus { border-color: var(--accent); }
+.note-area::placeholder { color: var(--muted); }
+.compose-actions { display: flex; gap: 8px; }
+
+.log-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 0;
+  flex-shrink: 0;
+}
+.log-section-title {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 5px 10px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.btn-export:hover { color: var(--text); border-color: rgba(255,255,255,0.2); background: #2a2940; }
+.btn-export:active { transform: scale(0.97); }
+.btn-export svg { flex-shrink: 0; }
+.log-entries { display: flex; flex-direction: column; gap: 10px; }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 36px 20px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+.empty-state .icon { font-size: 1.8rem; opacity: 0.35; }
+
+.entry-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px;
+  position: relative;
+  animation: slideUp 0.22s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.entry-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.entry-time { font-size: 0.7rem; color: var(--muted); font-weight: 300; }
+.entry-delete {
+  background: none; border: none;
+  color: var(--muted); font-size: 1.2rem;
+  cursor: pointer; padding: 0 0 0 8px; line-height: 1;
+  min-width: 30px; min-height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.entry-delete:active { color: var(--accent2); }
+.entry-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.entry-chip {
+  font-size: 0.7rem; font-weight: 500;
+  padding: 3px 8px; border-radius: 999px;
+  color: rgba(0,0,0,0.72);
+}
+.entry-note { font-size: 0.8rem; color: var(--muted); line-height: 1.5; font-style: italic; }
+
+/* ── DESKTOP: side by side ── */
+@media (min-width: 700px) {
+  .tab-bar { display: none; }
+  .pages { display: flex; overflow: hidden; }
+  .page { position: relative; display: flex !important; overflow-y: auto; }
+  #wheelPage {
+    flex: 0 0 55%;
+    border-right: 1px solid var(--border);
+    padding-bottom: 20px;
+  }
+  #logPage { flex: 1; padding-bottom: 20px; }
+  .save-bar.hide-desktop { display: none; }
+  #wheelPage { padding-bottom: 0; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Feelings Wheel</h1>
+  <span class="subtitle">Tap a feeling to explore</span>
+</header>
+
+<div class="tab-bar">
+  <button class="tab-btn active" id="tabWheel" onclick="showTab('wheel')">🌀 Wheel</button>
+  <button class="tab-btn" id="tabLog" onclick="showTab('log')">
+    📓 Journal <span class="tab-badge" id="logBadge"></span>
+  </button>
+</div>
+
+<div class="pages">
+  <!-- WHEEL PAGE -->
+  <div class="page active" id="wheelPage">
+    <div class="selection-bar" id="selectionBar"></div>
+    <svg id="wheel" viewBox="-325 -325 650 650" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <!-- LOG / JOURNAL PAGE -->
+  <div class="page" id="logPage">
+    <div class="log-compose">
+      <h2>New Entry</h2>
+      <div class="compose-preview" id="composePreview">
+        <span class="compose-empty">Tap the wheel to select feelings</span>
+      </div>
+      <textarea class="note-area" id="noteArea" rows="3" placeholder="Add a note… (optional)"></textarea>
+      <div class="compose-actions">
+        <button class="btn btn-ghost" id="clearBtn" onclick="clearSelection()">Clear</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveEntry()">Log Feeling</button>
+      </div>
+    </div>
+
+    <div class="log-section-header" id="logSectionHeader" style="display:none">
+      <div class="log-section-title">Past Entries</div>
+      <button class="btn-export" onclick="exportToPDF()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Export PDF
+      </button>
+    </div>
+    <div class="log-entries" id="logEntries"></div>
+  </div>
+</div>
+
+<!-- Zoom tooltip -->
+<div id="zoomLabel"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const wheelData = [
+  { name:'Happy', color:'#e8c84a', midColor:'#f0d568', outColor:'#f7e896',
+    mid:['Playful','Content','Interested','Proud','Accepted','Powerful','Peaceful','Trusting','Optimistic'],
+    out:['Aroused','Cheeky','Free','Joyful','Curious','Inquisitive','Successful','Confident','Respected','Valued','Courageous','Creative','Loving','Thankful','Sensitive','Intimate','Hopeful','Inspired'] },
+  { name:'Sad', color:'#5a9fc0', midColor:'#72b3d0', outColor:'#9fcfe3',
+    mid:['Lonely','Vulnerable','Despair','Guilty','Depressed','Hurt'],
+    out:['Isolated','Abandoned','Victimized','Fragile','Grief','Powerless','Ashamed','Remorseful','Empty','Inferior','Disappointed','Embarrassed'] },
+  { name:'Angry', color:'#e84040', midColor:'#f06060', outColor:'#f49090',
+    mid:['Bitter','Mad','Aggressive','Frustrated','Distant','Critical'],
+    out:['Indignant','Violated','Furious','Jealous','Provoked','Hostile','Infuriated','Annoyed','Withdrawn','Numb','Skeptical','Dismissive'] },
+  { name:'Disgusted', color:'#a0a0a0', midColor:'#b8b8b8', outColor:'#d4d4d4',
+    mid:['Disapproving','Disappointed','Awful','Repelled'],
+    out:['Judgmental','Embarrassed','Appalled','Revolted','Nauseated','Detestable','Horrified','Hesitant'] },
+  { name:'Fearful', color:'#f0963a', midColor:'#f5ab5e', outColor:'#f9c98a',
+    mid:['Scared','Anxious','Insecure','Weak','Rejected','Threatened'],
+    out:['Helpless','Frightened','Overwhelmed','Worried','Inadequate','Inferior','Worthless','Insignificant','Excluded','Persecuted','Nervous','Exposed'] },
+  { name:'Bad', color:'#72a84e', midColor:'#8bbf68', outColor:'#aed48e',
+    mid:['Bored','Busy','Stressed','Tired'],
+    out:['Indifferent','Apathetic','Pressured','Rushed','Overwhelmed','Out of control','Sleepy','Unfocussed'] },
+  { name:'Surprised', color:'#8844d4', midColor:'#9e62e0', outColor:'#bc94ee',
+    mid:['Startled','Confused','Amazed','Excited'],
+    out:['Shocked','Dismayed','Disillusioned','Perplexed','Astonished','Awe','Eager','Energetic'] },
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let selected = { inner: null, mid: new Map(), out: new Map() };
+let activeTab = 'wheel';
+
+// ── PERSISTENCE ───────────────────────────────────────────────────────────────
+function loadEntries() {
+  try {
+    const raw = localStorage.getItem('feelingsLog');
+    if (!raw) return [];
+    return JSON.parse(raw).map(e => ({ ...e, time: new Date(e.time) }));
+  } catch (e) { return []; }
+}
+function persistEntries() {
+  try { localStorage.setItem('feelingsLog', JSON.stringify(entries)); } catch (e) {}
+}
+
+let entries = loadEntries();
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function showTab(tab) {
+  activeTab = tab;
+  document.getElementById('wheelPage').classList.toggle('active', tab === 'wheel');
+  document.getElementById('logPage').classList.toggle('active', tab === 'log');
+  document.getElementById('tabWheel').classList.toggle('active', tab === 'wheel');
+  document.getElementById('tabLog').classList.toggle('active', tab === 'log');
+}
+
+// ── WHEEL BUILDER ─────────────────────────────────────────────────────────────
+const svg = document.getElementById('wheel');
+const NS = 'http://www.w3.org/2000/svg';
+const R_INNER=72, R_MID=150, R_OUT=228, R_EDGE=318;
+
+function polar(r, deg) {
+  const a = (deg - 90) * Math.PI / 180;
+  return [r * Math.cos(a), r * Math.sin(a)];
+}
+
+function arc(r1, r2, s, e) {
+  const [x1,y1]=polar(r1,s), [x2,y2]=polar(r2,s);
+  const [x3,y3]=polar(r2,e), [x4,y4]=polar(r1,e);
+  const lg = (e-s)>180?1:0;
+  return `M${x1},${y1} L${x2},${y2} A${r2},${r2} 0 ${lg},1 ${x3},${y3} L${x4},${y4} A${r1},${r1} 0 ${lg},0 ${x1},${y1} Z`;
+}
+
+function makeSeg(parent, id, title, color, r1, r2, s, e, fs, ring) {
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', arc(r1,r2,s,e));
+  path.setAttribute('fill', color);
+  path.setAttribute('stroke', 'rgba(0,0,0,0.18)');
+  path.setAttribute('stroke-width', '0.8');
+  path.classList.add('segment');
+  path.dataset.id = id;
+  path.dataset.ring = ring;
+
+  const mid = (s+e)/2;
+  const [tx,ty] = polar((r1+r2)/2, mid);
+  const span = e - s;
+  const text = document.createElementNS(NS, 'text');
+  text.setAttribute('x', tx); text.setAttribute('y', ty);
+  text.classList.add('seg-text');
+  text.setAttribute('fill', 'rgba(0,0,0,0.72)');
+  let finalFs = fs;
+  text.setAttribute('font-size', finalFs);
+
+  let rot;
+  if (ring === 'inner') {
+    rot = mid;
+  } else {
+    const leftHalf = mid > 135 && mid < 315;
+    rot = leftHalf ? mid - 90 : mid + 90;
+  }
+  text.setAttribute('transform', `rotate(${rot},${tx},${ty})`);
+
+  const words = title.split(' ');
+  if (words.length > 1 && span > 8) {
+    const t1 = document.createElementNS(NS,'tspan'); t1.setAttribute('x',tx); t1.setAttribute('dy','-0.55em'); t1.textContent = words[0];
+    const t2 = document.createElementNS(NS,'tspan'); t2.setAttribute('x',tx); t2.setAttribute('dy','1.1em'); t2.textContent = words.slice(1).join(' ');
+    text.appendChild(t1); text.appendChild(t2);
+  } else { text.textContent = title; }
+
+  // Desktop hover tooltip
+  path.addEventListener('mouseenter', (e) => { showLabel(title, e); path.classList.add('hovered'); });
+  path.addEventListener('mousemove', (e) => moveLabel(e));
+  path.addEventListener('mouseleave', () => { hideLabel(); path.classList.remove('hovered'); });
+
+  // Touch: tap = select, brief hold = show tooltip then release hides it
+  let startX, startY, moved, holdTimer;
+  path.addEventListener('touchstart', e => {
+    startX=e.touches[0].clientX; startY=e.touches[0].clientY; moved=false;
+    holdTimer = setTimeout(() => { if (!moved) showLabel(title, e.touches[0]); }, 160);
+  }, {passive:true});
+  path.addEventListener('touchmove', e => {
+    if(Math.abs(e.touches[0].clientX-startX)>8||Math.abs(e.touches[0].clientY-startY)>8){
+      moved=true; clearTimeout(holdTimer); hideLabel();
+    }
+  }, {passive:true});
+  path.addEventListener('touchend', e => {
+    clearTimeout(holdTimer); hideLabel();
+    if(!moved){ e.preventDefault(); onSeg(ring,id,title,color); }
+  });
+  path.addEventListener('click', () => onSeg(ring,id,title,color));
+
+  parent.appendChild(path);
+  parent.appendChild(text);
+}
+
+// ── TOOLTIP SYSTEM ────────────────────────────────────────────────────────────
+function showLabel(title, pointerEvent) {
+  const label = document.getElementById('zoomLabel');
+  label.textContent = title;
+  label.classList.add('show');
+  if (pointerEvent) moveLabel(pointerEvent);
+}
+
+function hideLabel() {
+  document.getElementById('zoomLabel').classList.remove('show');
+  document.querySelectorAll('.segment.hovered').forEach(el => el.classList.remove('hovered'));
+}
+
+function moveLabel(e) {
+  const label = document.getElementById('zoomLabel');
+  const x = (e.clientX ?? e.pageX) + 14;
+  const y = (e.clientY ?? e.pageY) - 36;
+  label.style.left = Math.min(x, window.innerWidth - label.offsetWidth - 12) + 'px';
+  label.style.top  = Math.max(y, 8) + 'px';
+}
+
+function buildWheel() {
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  const gO=document.createElementNS(NS,'g'), gM=document.createElementNS(NS,'g'), gI=document.createElementNS(NS,'g');
+
+  const iSpan = 360 / wheelData.length; // each inner slice gets equal share
+  let iStart = 0;
+
+  wheelData.forEach(w => {
+    // Inner ring
+    makeSeg(gI, w.name, w.name, w.color, R_INNER, R_MID, iStart, iStart+iSpan, 13, 'inner');
+
+    // Mid ring — subdivide the same iSpan equally among mid children
+    const mSlice = iSpan / w.mid.length;
+    w.mid.forEach((l,i) => {
+      const ss = iStart + i * mSlice;
+      makeSeg(gM, `m_${w.name}_${l}`, l, w.midColor, R_MID, R_OUT, ss, ss+mSlice, 10.5, 'mid');
+    });
+
+    // Outer ring — subdivide the same iSpan equally among outer children
+    const oSlice = iSpan / w.out.length;
+    w.out.forEach((l,i) => {
+      const ss = iStart + i * oSlice;
+      makeSeg(gO, `o_${w.name}_${l}`, l, w.outColor, R_OUT, R_EDGE, ss, ss+oSlice, 9, 'out');
+    });
+
+    iStart += iSpan;
+  });
+
+  svg.appendChild(gO); svg.appendChild(gM); svg.appendChild(gI);
+
+  const c = document.createElementNS(NS,'circle');
+  c.setAttribute('cx',0); c.setAttribute('cy',0); c.setAttribute('r',R_INNER);
+  c.setAttribute('fill','#1a1929'); c.setAttribute('stroke','rgba(255,255,255,0.08)'); c.setAttribute('stroke-width','1');
+  svg.appendChild(c);
+
+  const ct = document.createElementNS(NS,'text');
+  ct.setAttribute('x',0); ct.setAttribute('y',4);
+  ct.setAttribute('text-anchor','middle'); ct.setAttribute('dominant-baseline','middle');
+  ct.setAttribute('font-size','9'); ct.setAttribute('fill','rgba(255,255,255,0.32)');
+  ct.setAttribute('font-family','DM Sans,sans-serif'); ct.textContent='How do you feel?';
+  svg.appendChild(ct);
+}
+
+// ── INTERACTION ───────────────────────────────────────────────────────────────
+function getParent(label) {
+  for (const w of wheelData) if (w.mid.includes(label)||w.out.includes(label)||w.name===label) return w;
+}
+
+function onSeg(ring, id, label, color) {
+  if (ring === 'inner') {
+    if (selected.inner?.id === id) {
+      // deselect inner clears everything
+      selected.inner = null;
+      selected.mid.clear();
+      selected.out.clear();
+    } else {
+      selected.inner = {id, label, color};
+    }
+  } else {
+    const map = selected[ring];
+    if (map.has(id)) {
+      map.delete(id);
+    } else {
+      map.set(id, {id, label, color});
+      // auto-select parent inner if not already set
+      const p = getParent(label);
+      if (p && !selected.inner) selected.inner = {id: p.name, label: p.name, color: p.color};
+    }
+  }
+  refresh();
+}
+
+function refresh() {
+  // visuals
+  document.querySelectorAll('.segment').forEach(el => {
+    const ring = el.dataset.ring;
+    let active = false;
+    if (ring === 'inner') active = selected.inner?.id === el.dataset.id;
+    else active = selected[ring].has(el.dataset.id);
+    el.classList.toggle('selected', active);
+  });
+
+  // selection bar (wheel page)
+  const bar = document.getElementById('selectionBar');
+  bar.innerHTML = '';
+
+  if (selected.inner) {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.style.background = selected.inner.color;
+    chip.style.color = 'rgba(0,0,0,0.75)';
+    chip.innerHTML = `<span>${selected.inner.label}</span><span class="remove" onclick="removeInner()">×</span>`;
+    bar.appendChild(chip);
+  }
+  selected.mid.forEach((item, id) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.style.background = item.color;
+    chip.style.color = 'rgba(0,0,0,0.75)';
+    chip.innerHTML = `<span>${item.label}</span><span class="remove" onclick="removeFromMap('mid','${id}')">×</span>`;
+    bar.appendChild(chip);
+  });
+  selected.out.forEach((item, id) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.style.background = item.color;
+    chip.style.color = 'rgba(0,0,0,0.75)';
+    chip.innerHTML = `<span>${item.label}</span><span class="remove" onclick="removeFromMap('out','${id}')">×</span>`;
+    bar.appendChild(chip);
+  });
+
+  // compose preview (log page)
+  const preview = document.getElementById('composePreview');
+  preview.innerHTML = '';
+  const hasAny = selected.inner || selected.mid.size > 0 || selected.out.size > 0;
+  if (!hasAny) {
+    preview.innerHTML = '<span class="compose-empty">Tap the wheel to select feelings</span>';
+  } else {
+    const addChip = (item) => {
+      const c = document.createElement('span');
+      c.className = 'compose-chip';
+      c.style.background = item.color;
+      c.textContent = item.label;
+      preview.appendChild(c);
+    };
+    if (selected.inner) addChip(selected.inner);
+    selected.mid.forEach(addChip);
+    selected.out.forEach(addChip);
+  }
+
+  const btn = document.getElementById('saveBtn');
+  btn.style.opacity = hasAny ? '1' : '0.4';
+  btn.style.pointerEvents = hasAny ? 'auto' : 'none';
+}
+
+function removeInner() {
+  selected.inner = null;
+  selected.mid.clear();
+  selected.out.clear();
+  refresh();
+}
+
+function removeFromMap(ring, id) {
+  selected[ring].delete(id);
+  refresh();
+}
+
+// Keep removeChip for any legacy inline calls
+function removeChip(ring) {
+  if (ring === 'inner') removeInner();
+  refresh();
+}
+
+function clearSelection() {
+  selected = { inner: null, mid: new Map(), out: new Map() };
+  document.getElementById('noteArea').value = '';
+  refresh();
+}
+
+// ── SAVING ────────────────────────────────────────────────────────────────────
+function saveEntry() {
+  const hasAny = selected.inner || selected.mid.size > 0 || selected.out.size > 0;
+  if (!hasAny) return;
+  const feelings = {
+    inner: selected.inner ? {...selected.inner} : null,
+    mid: [...selected.mid.values()],
+    out: [...selected.out.values()],
+  };
+  entries.unshift({
+    id: Date.now(),
+    time: new Date(),
+    feelings,
+    note: document.getElementById('noteArea').value.trim()
+  });
+  persistEntries();
+  renderEntries();
+  clearSelection();
+  updateBadge();
+}
+
+function deleteEntry(id) {
+  entries = entries.filter(e => e.id !== id);
+  persistEntries();
+  renderEntries();
+  updateBadge();
+}
+
+function updateBadge() {
+  const b = document.getElementById('logBadge');
+  const n = entries.length;
+  b.textContent = n > 99 ? '99+' : n;
+  b.classList.toggle('show', n > 0);
+  document.getElementById('logSectionHeader').style.display = n > 0 ? 'flex' : 'none';
+}
+
+function fmt(d) {
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) +
+    ' · ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+}
+
+function renderEntries() {
+  const el = document.getElementById('logEntries');
+  el.innerHTML = '';
+  if (!entries.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📓</div><div>Your logged feelings will appear here</div></div>';
+    return;
+  }
+  entries.forEach(e => {
+    const card = document.createElement('div');
+    card.className = 'entry-card';
+    const hdr = document.createElement('div'); hdr.className = 'entry-header';
+    const t = document.createElement('div'); t.className = 'entry-time'; t.textContent = fmt(e.time);
+    const del = document.createElement('button'); del.className = 'entry-delete'; del.innerHTML = '×';
+    del.setAttribute('aria-label','Delete'); del.onclick = () => deleteEntry(e.id);
+    hdr.appendChild(t); hdr.appendChild(del); card.appendChild(hdr);
+
+    const chips = document.createElement('div'); chips.className = 'entry-chips';
+    const addChip = (item) => {
+      const c = document.createElement('span'); c.className = 'entry-chip';
+      c.style.background = item.color; c.textContent = item.label;
+      chips.appendChild(c);
+    };
+    // Support both old format (single values) and new format (arrays for mid/out)
+    if (e.feelings.inner) addChip(e.feelings.inner);
+    const mids = Array.isArray(e.feelings.mid) ? e.feelings.mid : (e.feelings.mid ? [e.feelings.mid] : []);
+    const outs = Array.isArray(e.feelings.out) ? e.feelings.out : (e.feelings.out ? [e.feelings.out] : []);
+    mids.forEach(addChip);
+    outs.forEach(addChip);
+    card.appendChild(chips);
+    if (e.note) { const p = document.createElement('p'); p.className='entry-note'; p.textContent=e.note; card.appendChild(p); }
+    el.appendChild(card);
+  });
+}
+
+// ── PDF EXPORT ────────────────────────────────────────────────────────────────
+function exportToPDF() {
+  if (!entries.length) return;
+  if (!window.jspdf) {
+    alert('PDF library is still loading — please try again in a moment.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const ML = 48, MR = 48, MT = 56;
+  const contentW = W - ML - MR;
+  let y = MT;
+
+  // Helper: hex to rgb
+  function hexRgb(hex) {
+    const r = parseInt(hex.slice(1,3),16);
+    const g = parseInt(hex.slice(3,5),16);
+    const b = parseInt(hex.slice(5,7),16);
+    return [r,g,b];
+  }
+
+  // Check if we need a new page
+  function checkPage(needed = 20) {
+    if (y + needed > H - 48) {
+      doc.addPage();
+      y = MT;
+      return true;
+    }
+    return false;
+  }
+
+  // ── Cover / Header ──
+  // Background strip
+  doc.setFillColor(15, 14, 23);
+  doc.rect(0, 0, W, 80, 'F');
+
+  doc.setTextColor(255, 255, 254);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.text('Feelings Journal', ML, 38);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(167, 169, 190);
+  const exportDate = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  doc.text(`Exported ${exportDate}  ·  ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`, ML, 54);
+
+  y = 104;
+
+  // ── Entries ──
+  entries.forEach((entry, idx) => {
+    const cardNeeded = 80;
+    checkPage(cardNeeded);
+
+    // Card background
+    const cardX = ML - 8;
+    const cardStartY = y;
+
+    // Date line
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(140, 140, 160);
+    const dateStr = entry.time.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' }) +
+      '  ·  ' + entry.time.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+    doc.text(dateStr, ML, y);
+    y += 14;
+
+    // Feeling chips
+    const mids = Array.isArray(entry.feelings.mid) ? entry.feelings.mid : (entry.feelings.mid ? [entry.feelings.mid] : []);
+    const outs = Array.isArray(entry.feelings.out) ? entry.feelings.out : (entry.feelings.out ? [entry.feelings.out] : []);
+    const allFeelings = [
+      ...(entry.feelings.inner ? [entry.feelings.inner] : []),
+      ...mids,
+      ...outs
+    ];
+
+    let chipX = ML;
+    const chipH = 16, chipPadX = 8, chipRadius = 4, chipFontSize = 8, chipGap = 5, rowGap = 6;
+
+    // Lay out chips, wrapping to next line if needed
+    allFeelings.forEach(f => {
+      doc.setFontSize(chipFontSize);
+      const labelW = doc.getTextWidth(f.label);
+      const chipW = labelW + chipPadX * 2;
+
+      if (chipX + chipW > W - MR) {
+        chipX = ML;
+        y += chipH + rowGap;
+        checkPage(chipH + rowGap);
+      }
+
+      const [r,g,b] = hexRgb(f.color);
+      doc.setFillColor(r, g, b);
+      doc.roundedRect(chipX, y - chipH + 3, chipW, chipH, chipRadius, chipRadius, 'F');
+
+      doc.setTextColor(30, 30, 30);
+      doc.setFont('helvetica', 'bold');
+      doc.text(f.label, chipX + chipPadX, y - 1);
+
+      chipX += chipW + chipGap;
+    });
+
+    y += chipH + 4;
+
+    // Note text
+    if (entry.note) {
+      checkPage(24);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9.5);
+      doc.setTextColor(110, 110, 130);
+      const lines = doc.splitTextToSize(`"${entry.note}"`, contentW);
+      lines.forEach(line => {
+        checkPage(14);
+        doc.text(line, ML, y);
+        y += 13;
+      });
+      y += 2;
+    }
+
+    // Divider (not after last entry)
+    if (idx < entries.length - 1) {
+      y += 8;
+      checkPage(16);
+      doc.setDrawColor(45, 44, 60);
+      doc.setLineWidth(0.5);
+      doc.line(ML, y, W - MR, y);
+      y += 14;
+    }
+  });
+
+  // Footer on each page
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 120, 140);
+    doc.text(`Feelings Journal  ·  Page ${i} of ${totalPages}`, W / 2, H - 24, { align: 'center' });
+  }
+
+  const filename = `feelings-journal-${new Date().toISOString().slice(0,10)}.pdf`;
+  doc.save(filename);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+try {
+  buildWheel();
+  renderEntries();
+  updateBadge();
+} catch(e) { console.error('Init error:', e); }
+
+// ── SERVICE WORKER REGISTRATION ───────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('Service worker registered'))
+      .catch(e => console.log('SW registration failed:', e));
+  });
+}
+</script>
+
+<!-- Load jsPDF async at end so it never blocks the page -->
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</body>
+</html>

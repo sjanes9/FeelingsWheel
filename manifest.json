@@ -1,0 +1,25 @@
+{
+  "name": "Feelings Wheel Journal",
+  "short_name": "Feelings",
+  "description": "An interactive feelings wheel to help you identify and log your emotions.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f0e17",
+  "theme_color": "#0f0e17",
+  "categories": ["health", "lifestyle"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
