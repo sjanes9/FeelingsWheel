@@ -510,6 +510,13 @@ function showTab(tab) {
 const svg = document.getElementById('wheel');
 const NS = 'http://www.w3.org/2000/svg';
 const R_INNER=72, R_MID=150, R_OUT=228, R_EDGE=318;
+const VB_DEFAULT = { x:-325, y:-325, w:650, h:650 };
+
+// Store each inner emotion's angle range for zooming
+const innerAngles = {};
+let zoomRAF = null;
+let currentVB = {...VB_DEFAULT};
+let targetVB  = {...VB_DEFAULT};
 
 function polar(r, deg) {
   const a = (deg - 90) * Math.PI / 180;
@@ -543,12 +550,16 @@ function makeSeg(parent, id, title, color, r1, r2, s, e, fs, ring) {
   let finalFs = fs;
   text.setAttribute('font-size', finalFs);
 
+  // Inner ring: tangential (runs around the arc) — wide enough to fit
+  // Mid/outer rings: radial (runs along the spoke depth) — fits far better in narrow segments
+  // Both: flip when text would be upside down
   let rot;
   if (ring === 'inner') {
-    rot = mid;
+    // Tangential — flip bottom half (90°–270°) to stay readable
+    rot = (mid > 90 && mid < 270) ? mid + 180 : mid;
   } else {
-    const leftHalf = mid > 135 && mid < 315;
-    rot = leftHalf ? mid - 90 : mid + 90;
+    // Radial outward — right half reads outward, left half reads inward but stays upright
+    rot = (mid > 180) ? mid + 90 : mid - 90;
   }
   text.setAttribute('transform', `rotate(${rot},${tx},${ty})`);
 
@@ -606,6 +617,45 @@ function moveLabel(e) {
   label.style.top  = Math.max(y, 8) + 'px';
 }
 
+// ── ZOOM SYSTEM ───────────────────────────────────────────────────────────────
+function lerpVB(a, b, t) {
+  return { x: a.x+(b.x-a.x)*t, y: a.y+(b.y-a.y)*t, w: a.w+(b.w-a.w)*t, h: a.h+(b.h-a.h)*t };
+}
+
+function animateVB() {
+  currentVB = lerpVB(currentVB, targetVB, 0.12);
+  svg.setAttribute('viewBox', `${currentVB.x} ${currentVB.y} ${currentVB.w} ${currentVB.h}`);
+  const done = Math.abs(currentVB.w - targetVB.w) < 0.5 && Math.abs(currentVB.x - targetVB.x) < 0.5;
+  if (!done) { zoomRAF = requestAnimationFrame(animateVB); }
+  else { currentVB = {...targetVB}; svg.setAttribute('viewBox', `${targetVB.x} ${targetVB.y} ${targetVB.w} ${targetVB.h}`); }
+}
+
+function zoomToInner(name) {
+  const a = innerAngles[name];
+  if (!a) return;
+
+  // Find the centroid of the mid+outer arc for this slice
+  const midAngleDeg = a.mid;
+  const midAngleRad = (midAngleDeg - 90) * Math.PI / 180;
+
+  // Focus point is midway between R_MID and R_EDGE
+  const focusR = (R_MID + R_EDGE) / 2;
+  const fx = focusR * Math.cos(midAngleRad);
+  const fy = focusR * Math.sin(midAngleRad);
+
+  // Zoom size: show roughly the slice width + some padding
+  const size = 340;
+  targetVB = { x: fx - size/2, y: fy - size/2, w: size, h: size };
+  cancelAnimationFrame(zoomRAF);
+  zoomRAF = requestAnimationFrame(animateVB);
+}
+
+function zoomReset() {
+  targetVB = {...VB_DEFAULT};
+  cancelAnimationFrame(zoomRAF);
+  zoomRAF = requestAnimationFrame(animateVB);
+}
+
 function buildWheel() {
   while (svg.firstChild) svg.removeChild(svg.firstChild);
   const gO=document.createElementNS(NS,'g'), gM=document.createElementNS(NS,'g'), gI=document.createElementNS(NS,'g');
@@ -615,20 +665,21 @@ function buildWheel() {
 
   wheelData.forEach(w => {
     // Inner ring
+    innerAngles[w.name] = { start: iStart, end: iStart + iSpan, mid: iStart + iSpan/2 };
     makeSeg(gI, w.name, w.name, w.color, R_INNER, R_MID, iStart, iStart+iSpan, 13, 'inner');
 
     // Mid ring — subdivide the same iSpan equally among mid children
     const mSlice = iSpan / w.mid.length;
     w.mid.forEach((l,i) => {
       const ss = iStart + i * mSlice;
-      makeSeg(gM, `m_${w.name}_${l}`, l, w.midColor, R_MID, R_OUT, ss, ss+mSlice, 10.5, 'mid');
+      makeSeg(gM, `m_${w.name}_${l}`, l, w.midColor, R_MID, R_OUT, ss, ss+mSlice, 9, 'mid');
     });
 
     // Outer ring — subdivide the same iSpan equally among outer children
     const oSlice = iSpan / w.out.length;
     w.out.forEach((l,i) => {
       const ss = iStart + i * oSlice;
-      makeSeg(gO, `o_${w.name}_${l}`, l, w.outColor, R_OUT, R_EDGE, ss, ss+oSlice, 9, 'out');
+      makeSeg(gO, `o_${w.name}_${l}`, l, w.outColor, R_OUT, R_EDGE, ss, ss+oSlice, 8, 'out');
     });
 
     iStart += iSpan;
@@ -657,12 +708,14 @@ function getParent(label) {
 function onSeg(ring, id, label, color) {
   if (ring === 'inner') {
     if (selected.inner?.id === id) {
-      // deselect inner clears everything
+      // deselect inner clears everything and zooms out
       selected.inner = null;
       selected.mid.clear();
       selected.out.clear();
+      zoomReset();
     } else {
       selected.inner = {id, label, color};
+      zoomToInner(id);
     }
   } else {
     const map = selected[ring];
@@ -745,6 +798,7 @@ function removeInner() {
   selected.inner = null;
   selected.mid.clear();
   selected.out.clear();
+  zoomReset();
   refresh();
 }
 
@@ -762,6 +816,7 @@ function removeChip(ring) {
 function clearSelection() {
   selected = { inner: null, mid: new Map(), out: new Map() };
   document.getElementById('noteArea').value = '';
+  zoomReset();
   refresh();
 }
 
@@ -1008,3 +1063,4 @@ if ('serviceWorker' in navigator) {
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>
+
